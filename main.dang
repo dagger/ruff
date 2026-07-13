@@ -1,0 +1,128 @@
+pub description = "An extremely fast Python linter and formatter, powered by ruff"
+
+type Ruff {
+  """
+  The ruff binary extracted from the bundled Docker image
+  """
+  let ruffBinary: Directory! {
+    currentModule.source.directory("images/ruff").dockerBuild.rootfs
+  }
+
+  let alpine: Container! {
+    currentModule.source.directory("images/alpine").dockerBuild
+  }
+
+  """
+  The source directory containing your Python project, taken from the
+  workspace at `sourcePath` in the constructor.
+  """
+  pub source: Directory!
+
+  """
+  Additional arguments to pass to ruff (e.g., ["--select", "E,F"]).
+  """
+  pub args: [String!]! = []
+
+  """
+  Optional: a custom container that replaces the default Alpine + ruff base.
+  When set, `ruff` is expected to already be on its PATH.
+  """
+  pub container: Container = null
+
+  """
+  Construct the toolchain from a workspace.
+
+  `source` is taken from the workspace at `sourcePath`; `args` are forwarded to
+  every ruff invocation and `container` overrides the default base.
+  """
+new(
+    ws: Workspace!,
+    sourcePath: String! = "/",
+    args: [String!]! = [],
+    container: Container = null,
+  ) {
+    self.source = ws.directory(sourcePath)
+    self.args = args
+    self.container = container
+    self
+  }
+
+  """
+  The default Alpine base with the pinned ruff binary on PATH and a cache
+  volume mounted at ruff's cache directory.
+  """
+  let defaultBase: Container! {
+    alpine
+      .withEnvVariable("RUFF_CACHE_DIR", "/root/.cache/ruff")
+      .withMountedCache("/root/.cache/ruff", cacheVolume("ruff-cache"))
+      .withDirectory("/usr/local/bin", ruffBinary, include: ["ruff"])
+  }
+
+  """
+  The base used by every command: the custom container if provided, else the
+  default Alpine + ruff base.
+  """
+  let base: Container! {
+    if (container != null) {
+      container
+    } else {
+      defaultBase
+    }
+  }
+
+  let workContainer: Container! {
+    base
+      .withDirectory("/work", source)
+      .withWorkdir("/work")
+  }
+
+  """
+  Lint the project with `ruff check`. Fails the check when ruff reports
+  violations (exit 1) or errors (exit 2).
+  """
+  pub check: Void @check {
+    workContainer.withExec(["ruff", "check"] + args).sync
+    null
+  }
+
+  """
+  Return ruff's lint report as text without failing on violations.
+
+  Uses `--exit-zero`, so violations still produce a report and exit 0; a real
+  tool error (exit 2, e.g. a broken config) still fails.
+  """
+  pub lint: Void {
+    workContainer.withExec(["ruff", "check", "--exit-zero"] + args).sync
+    null
+  }
+
+  """
+  Apply ruff's automatic lint fixes (`ruff check --fix`).
+
+  Uses `--exit-zero`, so remaining unfixable violations don't fail the call; a
+  real tool error (exit 2, e.g. a broken config) still does.
+  """
+  pub fix: Changeset! {
+    workContainer
+      .withExec(["ruff", "check", "--fix", "--exit-zero"] + args)
+      .directory("/work")
+      .changes(workContainer.directory("/work"))
+  }
+
+  """
+  Format the project with `ruff format`.
+  """
+  pub format: Changeset! @generate {
+    workContainer
+      .withExec(["ruff", "format"] + args)
+      .directory("/work")
+      .changes(workContainer.directory("/work"))
+  }
+
+  """
+  The version of the bundled ruff binary.
+  """
+  pub version: String! {
+    base.withExec(["ruff", "--version"]).stdout
+  }
+}
