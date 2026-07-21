@@ -6,3 +6,6 @@ name = "dang"
 
 [[modules.dagger-dang-sdk.as-sdk.modules]]
 path = "."
+
+[modules.ruff]
+source = "."
