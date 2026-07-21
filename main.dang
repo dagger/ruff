@@ -117,6 +117,12 @@ new(
     if (found.contains("..") == false or found.contains("app") == false) {
       raise "Ruff discovery should return the nearest ancestor and cwd descendants: " + found.join(", ")
     }
+
+    let nestedWs = fixture.asWorkspace(cwd: "work/app/nested/deeper")
+    let nestedFound = projects(nestedWs)
+    if (nestedFound.length != 1 or nestedFound.contains("../..") == false) {
+      raise "Ruff discovery should prefer the nearer ruff.toml over the ancestor pyproject.toml: " + nestedFound.join(", ")
+    }
     null
   }
 
