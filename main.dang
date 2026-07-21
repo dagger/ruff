@@ -80,8 +80,65 @@ new(
   Lint the project with `ruff check`. Fails the check when ruff reports
   violations (exit 1) or errors (exit 2).
   """
-  pub check: Void @check {
+  pub check: Void {
     workContainer.withExec(["ruff", "check"] + args).sync
+    null
+  }
+
+  """
+  Ruff projects visible from the client's cwd: its nearest enclosing project
+  plus projects at or below it. Paths are cwd-relative.
+  """
+  pub projects(ws: Workspace!): [String!]! {
+    polyfill().workspace(ws).findConfigDirs(
+      ["pyproject.toml", "ruff.toml", ".ruff.toml"],
+      exclude: ["**/.venv/**", "**/site-packages/**", "**/node_modules/**"],
+    )
+  }
+
+  """
+  Check every Ruff project in the caller's cone. A strict ancestor is returned
+  by discovery for context but is not checked from a descendant cwd.
+  """
+  pub checkAll(ws: Workspace!): Void @check {
+    projects(ws)
+      .filter { path => path.hasPrefix("..") == false }
+      .each { path => Ruff(ws, sourcePath: path, args: args, container: container).check }
+    null
+  }
+
+  """
+  Discovery is cwd-relative and automatic checks exclude strict ancestors.
+  """
+  pub discoveryCheck: Void @check {
+    let fixture = currentModule.source.directory("tests/discovery/ancestor")
+    let ws = fixture.asWorkspace(cwd: "work")
+    let found = projects(ws)
+    if (found.contains("..") == false or found.contains("app") == false) {
+      raise "Ruff discovery should return the nearest ancestor and cwd descendants: " + found.join(", ")
+    }
+    null
+  }
+
+  """
+  From a configless subdirectory, automatic checking skips a failing ancestor
+  but still fails for a broken descendant project.
+  """
+  pub cwdScopeCheck: Void @check {
+    let fixture = currentModule.source.directory("tests/discovery/ancestor")
+    let dirtyAncestor = fixture
+      .withNewFile("bad.py", "if True print('broken')\n")
+      .asWorkspace(cwd: "work")
+    Ruff(dirtyAncestor).checkAll(dirtyAncestor)
+
+    let dirtyDescendant = fixture
+      .withNewFile("work/app/bad.py", "if True print('broken')\n")
+      .asWorkspace(cwd: "work")
+    let dirtyRuff = Ruff(dirtyDescendant)
+    let failed = try { dirtyRuff.checkAll(dirtyDescendant); false } catch { err => true }
+    if (failed == false) {
+      raise "Ruff should check a failing descendant project"
+    }
     null
   }
 
