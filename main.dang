@@ -90,8 +90,8 @@ new(
   plus projects at or below it. Paths are cwd-relative.
   """
   pub projects(ws: Workspace!): [String!]! {
-    polyfill().workspace(ws).findConfigDirs(
-      ["pyproject.toml", "ruff.toml", ".ruff.toml"],
+    ws.findRoots(
+      markers: ["pyproject.toml", "ruff.toml", ".ruff.toml"],
       exclude: ["**/.venv/**", "**/site-packages/**", "**/node_modules/**"],
     )
   }
