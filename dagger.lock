@@ -1,2 +1,2 @@
-[["version","1"]]
-["","git.head",["https://github.com/dagger/dang-sdk"],"6c63cd08652f87c903f3b6fbc5e2fc26505b067a","float"]
+[["version","2"]]
+["","git.ref",["https://github.com/dagger/dang-sdk","HEAD"],{"ref":"refs/heads/main","sha":"c724eec4270870aae489daa9f3cb8cbacfb44680"}]

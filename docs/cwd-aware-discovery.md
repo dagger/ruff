@@ -1,8 +1,9 @@
 # CWD-aware Ruff discovery
 
 `projects(ws)` delegates discovery of `pyproject.toml`, `ruff.toml`, and
-`.ruff.toml` to `github.com/dagger/polyfill`. Results are cwd-relative: the cwd
-and descendants plus at most one nearest enclosing project.
+`.ruff.toml` to `Workspace.findRoots`. Results are cwd-relative: the cwd and
+descendants plus at most one nearest enclosing project. `.venv`,
+`site-packages`, and `node_modules` are pruned from the walk.
 
 `checkAll` checks only the caller's project and descendants, never a strict
 ancestor represented by a `..` path. Explicit `check`, `lint`, `fix`, and
