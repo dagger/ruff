@@ -123,6 +123,14 @@ new(
     if (nestedFound.length != 1 or nestedFound.contains("../..") == false) {
       raise "Ruff discovery should prefer the nearer ruff.toml over the ancestor pyproject.toml: " + nestedFound.join(", ")
     }
+
+    let vendoredWs = fixture
+      .withNewFile("work/.venv/lib/pyproject.toml", "")
+      .asWorkspace(cwd: "work")
+    let vendoredFound = projects(vendoredWs)
+    if (vendoredFound.contains(".venv/lib")) {
+      raise "Ruff discovery should prune vendored environments: " + vendoredFound.join(", ")
+    }
     null
   }
 
