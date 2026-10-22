@@ -1,5 +1,10 @@
 # ruff
 
+> [!WARNING]
+> This module is deprecated, use [dagger/python](https://github.com/dagger/python)/ruff instead.
+>
+> Install it with `dagger module install dagger.io/python/ruff`
+
 A [Dagger](https://dagger.io) module — written in the `.dang` module language —
 that wraps [ruff](https://docs.astral.sh/ruff/), the extremely fast Python
 linter and formatter.
